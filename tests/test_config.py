@@ -78,3 +78,28 @@ def test_max_tokens_int_roundtrip():
     config_write({"max-tokens": 512})
     result = config_read()
     assert result["max-tokens"] == 512
+
+
+def test_referer_roundtrip():
+    config_write({"referer": "https://example.com"})
+    result = config_read()
+    assert result["referer"] == "https://example.com"
+
+
+def test_title_roundtrip():
+    config_write({"title": "My App"})
+    result = config_read()
+    assert result["title"] == "My App"
+
+
+def test_resolve_settings_referer_title_priority(monkeypatch):
+    config_write({"referer": "https://from-file", "title": "from-file"})
+    monkeypatch.setenv("VLLM_REFERER", "https://from-env")
+    monkeypatch.setenv("VLLM_TITLE", "from-env")
+    settings = resolve_settings({})
+    assert settings["referer"] == "https://from-env"
+    assert settings["title"] == "from-env"
+
+    settings = resolve_settings({"referer": "https://from-cli", "title": "from-cli"})
+    assert settings["referer"] == "https://from-cli"
+    assert settings["title"] == "from-cli"
