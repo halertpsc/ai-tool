@@ -11,6 +11,8 @@ class VllmClient:
         base_url: str,
         model: str,
         api_key: Optional[str] = None,
+        referer: Optional[str] = None,
+        title: Optional[str] = None,
         timeout: float = 120.0,
     ) -> None:
         self.base_url = base_url.rstrip("/")
@@ -18,6 +20,10 @@ class VllmClient:
         headers: Dict[str, str] = {"Content-Type": "application/json"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
+        if referer:
+            headers["HTTP-Referer"] = referer
+        if title:
+            headers["X-Title"] = title
         self._client = httpx.Client(headers=headers, timeout=timeout)
 
     # ------------------------------------------------------------------

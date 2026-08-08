@@ -51,6 +51,8 @@ def complete_cmd(
     url = require_url(settings)
     model = settings.get("model") or "default"
     api_key = settings.get("api-key")
+    referer = settings.get("referer")
+    title = settings.get("title")
     output_fmt = ctx.obj.get("output") or "text"
 
     use_stream = stream if stream is not None else sys.stdout.isatty()
@@ -69,7 +71,7 @@ def complete_cmd(
     if stop:
         params["stop"] = list(stop)
 
-    client = VllmClient(url, model, api_key)
+    client = VllmClient(url, model, api_key, referer, title)
     try:
         if use_stream and output_fmt != "json":
             try:

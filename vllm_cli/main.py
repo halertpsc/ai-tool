@@ -17,6 +17,8 @@ except PackageNotFoundError:
 @click.option("--url", default=None, help="vLLM server base URL")
 @click.option("--model", default=None, help="Model identifier")
 @click.option("--api-key", default=None, help="Bearer token for authentication")
+@click.option("--referer", default=None, help="Value sent as the HTTP-Referer header")
+@click.option("--title", default=None, help="Value sent as the X-Title header")
 @click.option(
     "--output",
     default=None,
@@ -24,12 +26,22 @@ except PackageNotFoundError:
     help="Output format (text or json)",
 )
 @click.pass_context
-def cli(ctx: click.Context, url: str, model: str, api_key: str, output: str) -> None:
+def cli(
+    ctx: click.Context,
+    url: str,
+    model: str,
+    api_key: str,
+    referer: str,
+    title: str,
+    output: str,
+) -> None:
     """Command-line interface for vLLM-hosted models."""
     ctx.ensure_object(dict)
     ctx.obj["url"] = url
     ctx.obj["model"] = model
     ctx.obj["api-key"] = api_key
+    ctx.obj["referer"] = referer
+    ctx.obj["title"] = title
     ctx.obj["output"] = output
 
 

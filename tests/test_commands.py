@@ -163,3 +163,27 @@ def test_config_get_unset_key(runner):
     result = runner.invoke(cli, ["config", "get", "model"])
     assert result.exit_code == 0
     assert "(not set)" in result.output
+
+
+def test_config_set_and_get_referer(runner, monkeypatch):
+    monkeypatch.setattr("vllm_cli.commands.config_cmd.get_config_path",
+                        cfg_module.get_config_path)
+    result = runner.invoke(cli, ["config", "set", "referer", "https://example.com"])
+    assert result.exit_code == 0
+    assert "Set referer" in result.output
+
+    result = runner.invoke(cli, ["config", "get", "referer"])
+    assert result.exit_code == 0
+    assert "https://example.com" in result.output
+
+
+def test_config_set_and_get_title(runner, monkeypatch):
+    monkeypatch.setattr("vllm_cli.commands.config_cmd.get_config_path",
+                        cfg_module.get_config_path)
+    result = runner.invoke(cli, ["config", "set", "title", "My App"])
+    assert result.exit_code == 0
+    assert "Set title" in result.output
+
+    result = runner.invoke(cli, ["config", "get", "title"])
+    assert result.exit_code == 0
+    assert "My App" in result.output

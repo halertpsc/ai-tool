@@ -8,7 +8,7 @@ try:
 except ImportError:
     import tomli as tomllib  # type: ignore[no-redef]
 
-VALID_KEYS = {"url", "model", "api-key", "max-tokens", "temperature"}
+VALID_KEYS = {"url", "model", "api-key", "max-tokens", "temperature", "referer", "title"}
 
 # CLI-facing key (hyphen) → TOML file key (underscore)
 KEY_MAP = {
@@ -17,6 +17,8 @@ KEY_MAP = {
     "api-key": "api_key",
     "max-tokens": "max_tokens",
     "temperature": "temperature",
+    "referer": "referer",
+    "title": "title",
 }
 
 KEY_TYPES: Dict[str, type] = {
@@ -25,12 +27,16 @@ KEY_TYPES: Dict[str, type] = {
     "api-key": str,
     "max-tokens": int,
     "temperature": float,
+    "referer": str,
+    "title": str,
 }
 
 ENV_MAP = {
     "url": "VLLM_URL",
     "model": "VLLM_MODEL",
     "api-key": "VLLM_API_KEY",
+    "referer": "VLLM_REFERER",
+    "title": "VLLM_TITLE",
 }
 
 _REVERSE_KEY_MAP = {v: k for k, v in KEY_MAP.items()}

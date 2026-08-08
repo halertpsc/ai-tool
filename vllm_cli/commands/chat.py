@@ -36,6 +36,8 @@ def chat_cmd(
     url = require_url(settings)
     model = settings.get("model") or "default"
     api_key = settings.get("api-key")
+    referer = settings.get("referer")
+    title = settings.get("title")
     use_stream = sys.stdout.isatty()
 
     params: Dict = {}
@@ -54,7 +56,7 @@ def chat_cmd(
     if system:
         history.append({"role": "system", "content": system})
 
-    client = VllmClient(url, model, api_key)
+    client = VllmClient(url, model, api_key, referer, title)
     click.echo(f"vllm-cli chat | model: {model} | type 'exit' or 'quit' to end\n")
 
     try:
