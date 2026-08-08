@@ -1,10 +1,12 @@
+import os
 import sys
 from typing import Dict, Generator, List, Optional
 
 import click
 
+from vllm_cli.agent import run_agent_turn
 from vllm_cli.client import VllmClient
-from vllm_cli.config import require_url, resolve_settings
+from vllm_cli.config import coerce_bool, require_url, resolve_settings
 from vllm_cli.sse import StreamInterrupted
 
 
@@ -23,6 +25,18 @@ from vllm_cli.sse import StreamInterrupted
     default=None,
     help="Top-p nucleus sampling (0.0–1.0)",
 )
+@click.option(
+    "--tools",
+    "use_tools",
+    is_flag=True,
+    default=None,
+    help="Enable agentic mode: model may call built-in tools (each execution requires approval)",
+)
+@click.option(
+    "--tools-root",
+    default=None,
+    help="Working directory that file/command tools are scoped to (default: current directory)",
+)
 @click.pass_context
 def chat_cmd(
     ctx: click.Context,
@@ -30,6 +44,8 @@ def chat_cmd(
     max_tokens: Optional[int],
     temperature: Optional[float],
     top_p: Optional[float],
+    use_tools: Optional[bool],
+    tools_root: Optional[str],
 ) -> None:
     """Start an interactive multi-turn chat session."""
     settings = resolve_settings(ctx.obj)
@@ -39,6 +55,9 @@ def chat_cmd(
     referer = settings.get("referer")
     title = settings.get("title")
     use_stream = sys.stdout.isatty()
+
+    tools_enabled = use_tools if use_tools is not None else coerce_bool(settings.get("tools"))
+    resolved_tools_root = tools_root or settings.get("tools-root") or os.getcwd()
 
     params: Dict = {}
     if max_tokens is not None:
@@ -73,12 +92,15 @@ def chat_cmd(
                 break
 
             history.append({"role": "user", "content": stripped})
-            click.echo("Assistant: ", nl=False)
 
             try:
-                if use_stream:
+                if tools_enabled:
+                    reply = run_agent_turn(client, history, resolved_tools_root, use_stream, params)
+                elif use_stream:
+                    click.echo("Assistant: ", nl=False)
                     reply = _stream_reply(client, list(history), params)
                 else:
+                    click.echo("Assistant: ", nl=False)
                     result = client.chat(list(history), **params)
                     reply = result["choices"][0]["message"]["content"]
                     click.echo(reply)

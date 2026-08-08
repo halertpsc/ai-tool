@@ -2,7 +2,7 @@ from typing import Any, Dict, Generator, List, Optional
 
 import httpx
 
-from vllm_cli.sse import StreamInterrupted, parse_sse_stream
+from vllm_cli.sse import StreamInterrupted, parse_sse_events, parse_sse_stream
 
 
 class VllmClient:
@@ -42,6 +42,12 @@ class VllmClient:
         for key in ("max_tokens", "temperature", "top_p"):
             if key in params and params[key] is not None:
                 payload[key] = params[key]
+        tools = params.get("tools")
+        if tools:
+            payload["tools"] = tools
+        tool_choice = params.get("tool_choice")
+        if tool_choice is not None:
+            payload["tool_choice"] = tool_choice
         return payload
 
     # ------------------------------------------------------------------
@@ -121,6 +127,26 @@ class VllmClient:
                     self._raise_for_status(resp)
                 try:
                     yield from parse_sse_stream(resp.iter_lines())
+                except Exception as exc:
+                    raise StreamInterrupted(str(exc)) from exc
+        except httpx.ConnectError:
+            raise SystemExit(f"Connection error: could not reach {self.base_url}")
+
+    def chat_stream_events(self, messages: List[dict], **params: Any) -> Generator[dict, None, None]:
+        """Like chat_stream, but yields structured events ({"type": "content", ...}
+        or {"type": "tool_call_delta", ...} or {"type": "finish", ...}) so callers
+        can accumulate tool calls in addition to content tokens."""
+        payload = self._chat_payload(messages, **params)
+        payload["stream"] = True
+        try:
+            with self._client.stream(
+                "POST", f"{self.base_url}/v1/chat/completions", json=payload
+            ) as resp:
+                if not resp.is_success:
+                    resp.read()
+                    self._raise_for_status(resp)
+                try:
+                    yield from parse_sse_events(resp.iter_lines())
                 except Exception as exc:
                     raise StreamInterrupted(str(exc)) from exc
         except httpx.ConnectError:

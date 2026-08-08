@@ -29,6 +29,14 @@ def config_set(key: str, value: str) -> None:
             typed_value: object = int(value)
         elif target_type is float:
             typed_value = float(value)
+        elif target_type is bool:
+            lowered = value.strip().lower()
+            if lowered in ("true", "1", "yes", "on"):
+                typed_value = True
+            elif lowered in ("false", "0", "no", "off"):
+                typed_value = False
+            else:
+                raise ValueError(value)
         else:
             typed_value = value
     except ValueError:
