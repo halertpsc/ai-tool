@@ -8,7 +8,17 @@ try:
 except ImportError:
     import tomli as tomllib  # type: ignore[no-redef]
 
-VALID_KEYS = {"url", "model", "api-key", "max-tokens", "temperature", "referer", "title"}
+VALID_KEYS = {
+    "url",
+    "model",
+    "api-key",
+    "max-tokens",
+    "temperature",
+    "referer",
+    "title",
+    "tools",
+    "tools-root",
+}
 
 # CLI-facing key (hyphen) → TOML file key (underscore)
 KEY_MAP = {
@@ -19,6 +29,8 @@ KEY_MAP = {
     "temperature": "temperature",
     "referer": "referer",
     "title": "title",
+    "tools": "tools",
+    "tools-root": "tools_root",
 }
 
 KEY_TYPES: Dict[str, type] = {
@@ -29,6 +41,8 @@ KEY_TYPES: Dict[str, type] = {
     "temperature": float,
     "referer": str,
     "title": str,
+    "tools": bool,
+    "tools-root": str,
 }
 
 ENV_MAP = {
@@ -37,6 +51,8 @@ ENV_MAP = {
     "api-key": "VLLM_API_KEY",
     "referer": "VLLM_REFERER",
     "title": "VLLM_TITLE",
+    "tools": "VLLM_TOOLS",
+    "tools-root": "VLLM_TOOLS_ROOT",
 }
 
 _REVERSE_KEY_MAP = {v: k for k, v in KEY_MAP.items()}
@@ -92,6 +108,17 @@ def resolve_settings(cli_overrides: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         if val is not None:
             settings[key] = val
     return settings
+
+
+def coerce_bool(value: Any) -> bool:
+    """Normalize a bool-ish setting value (TOML bool, env/CLI string, or bool) to bool."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return bool(value)
 
 
 def require_url(settings: Dict[str, Any]) -> str:

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 import vllm_cli.config as cfg_module
-from vllm_cli.config import config_read, config_write, require_url, resolve_settings
+from vllm_cli.config import coerce_bool, config_read, config_write, require_url, resolve_settings
 
 
 @pytest.fixture(autouse=True)
@@ -103,3 +103,36 @@ def test_resolve_settings_referer_title_priority(monkeypatch):
     settings = resolve_settings({"referer": "https://from-cli", "title": "from-cli"})
     assert settings["referer"] == "https://from-cli"
     assert settings["title"] == "from-cli"
+
+
+def test_tools_bool_roundtrip():
+    config_write({"tools": True})
+    result = config_read()
+    assert result["tools"] is True
+
+
+def test_tools_root_roundtrip():
+    config_write({"tools-root": "/some/dir"})
+    result = config_read()
+    assert result["tools-root"] == "/some/dir"
+
+
+def test_resolve_settings_tools_env_var(monkeypatch):
+    monkeypatch.setenv("VLLM_TOOLS", "true")
+    monkeypatch.setenv("VLLM_TOOLS_ROOT", "/env/dir")
+    settings = resolve_settings({})
+    assert settings["tools"] == "true"
+    assert settings["tools-root"] == "/env/dir"
+
+
+def test_coerce_bool_variants():
+    assert coerce_bool(True) is True
+    assert coerce_bool(False) is False
+    assert coerce_bool(None) is False
+    assert coerce_bool("true") is True
+    assert coerce_bool("True") is True
+    assert coerce_bool("1") is True
+    assert coerce_bool("yes") is True
+    assert coerce_bool("false") is False
+    assert coerce_bool("0") is False
+    assert coerce_bool("") is False

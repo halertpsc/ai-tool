@@ -187,3 +187,61 @@ def test_config_set_and_get_title(runner, monkeypatch):
     result = runner.invoke(cli, ["config", "get", "title"])
     assert result.exit_code == 0
     assert "My App" in result.output
+
+
+def test_config_set_and_get_tools_bool(runner, monkeypatch):
+    monkeypatch.setattr("vllm_cli.commands.config_cmd.get_config_path",
+                        cfg_module.get_config_path)
+    result = runner.invoke(cli, ["config", "set", "tools", "true"])
+    assert result.exit_code == 0
+    assert "Set tools" in result.output
+
+    result = runner.invoke(cli, ["config", "get", "tools"])
+    assert result.exit_code == 0
+    assert "True" in result.output
+
+
+def test_config_set_tools_invalid_value(runner):
+    result = runner.invoke(cli, ["config", "set", "tools", "maybe"])
+    assert result.exit_code != 0
+
+
+def test_config_set_and_get_tools_root(runner, monkeypatch):
+    monkeypatch.setattr("vllm_cli.commands.config_cmd.get_config_path",
+                        cfg_module.get_config_path)
+    result = runner.invoke(cli, ["config", "set", "tools-root", "/scoped/dir"])
+    assert result.exit_code == 0
+
+    result = runner.invoke(cli, ["config", "get", "tools-root"])
+    assert result.exit_code == 0
+    assert "/scoped/dir" in result.output
+
+
+# ------------------------------------------------------------------
+# chat command — agentic mode
+# ------------------------------------------------------------------
+
+def test_chat_without_tools_flag_does_not_invoke_agent_loop(runner):
+    mock_resp = {"choices": [{"message": {"content": "Hello there."}}]}
+    with patch("vllm_cli.commands.chat.VllmClient") as MockClient, \
+         patch("vllm_cli.commands.chat.run_agent_turn") as mock_agent:
+        inst = MagicMock()
+        inst.chat.return_value = mock_resp
+        MockClient.return_value = inst
+        result = runner.invoke(cli, ["chat"], input="Hi\nquit\n")
+    assert result.exit_code == 0
+    mock_agent.assert_not_called()
+    assert "Hello there." in result.output
+
+
+def test_chat_with_tools_flag_invokes_agent_loop(runner):
+    mock_resp = {"choices": [{"message": {"content": "Tool-assisted reply", "tool_calls": []}}]}
+    with patch("vllm_cli.commands.chat.VllmClient") as MockClient:
+        inst = MagicMock()
+        inst.chat.return_value = mock_resp
+        MockClient.return_value = inst
+        result = runner.invoke(cli, ["chat", "--tools"], input="Read a.txt\nquit\n")
+    assert result.exit_code == 0
+    # tools=... kwarg proves the agentic loop (not the plain chat path) handled this turn
+    assert "tools" in inst.chat.call_args.kwargs
+    assert "Tool-assisted reply" in result.output
