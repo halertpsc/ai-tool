@@ -1,7 +1,14 @@
 import pytest
 
 from vllm_cli.tools.common import ToolError
-from vllm_cli.tools.files import edit_file, list_dir, read_file, resolve_scoped_path, write_file
+from vllm_cli.tools.files import (
+    edit_file,
+    list_dir,
+    patch_file,
+    read_file,
+    resolve_scoped_path,
+    write_file,
+)
 
 
 def test_resolve_scoped_path_within_root(tmp_path):
@@ -75,6 +82,48 @@ def test_edit_file_ambiguous_snippet(tmp_path):
     assert "Error" in result
     assert "ambiguous" in result
     assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "bar bar bar"
+
+
+def test_patch_file_applies_all_hunks(tmp_path):
+    (tmp_path / "a.txt").write_text("foo bar baz", encoding="utf-8")
+    result = patch_file(
+        tmp_path,
+        "a.txt",
+        [
+            {"old_text": "foo", "new_text": "FOO"},
+            {"old_text": "baz", "new_text": "BAZ"},
+        ],
+    )
+    assert "Applied 2 hunk(s)" in result
+    assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "FOO bar BAZ"
+
+
+def test_patch_file_aborts_on_failing_hunk(tmp_path):
+    (tmp_path / "a.txt").write_text("foo bar baz", encoding="utf-8")
+    result = patch_file(
+        tmp_path,
+        "a.txt",
+        [
+            {"old_text": "foo", "new_text": "FOO"},
+            {"old_text": "nope", "new_text": "NOPE"},
+        ],
+    )
+    assert "Error" in result
+    assert "hunk 1" in result
+    assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "foo bar baz"
+
+
+def test_patch_file_aborts_on_ambiguous_hunk(tmp_path):
+    (tmp_path / "a.txt").write_text("bar bar bar", encoding="utf-8")
+    result = patch_file(tmp_path, "a.txt", [{"old_text": "bar", "new_text": "qux"}])
+    assert "Error" in result
+    assert "ambiguous" in result
+    assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "bar bar bar"
+
+
+def test_patch_file_missing_file(tmp_path):
+    result = patch_file(tmp_path, "missing.txt", [{"old_text": "a", "new_text": "b"}])
+    assert "Error" in result
 
 
 def test_list_dir_returns_entries(tmp_path):

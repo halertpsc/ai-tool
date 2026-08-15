@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union
+from typing import Any, Dict, List, Union
 
 from vllm_cli.tools.common import MAX_OUTPUT_CHARS, ToolError, truncate_output
 
@@ -76,6 +76,44 @@ def edit_file(tools_root: Union[str, Path], path: str, old_text: str, new_text: 
     except OSError as exc:
         return f"Error: could not write file: {exc}"
     return f"Edited {path}"
+
+
+def patch_file(tools_root: Union[str, Path], path: str, edits: List[Dict[str, Any]]) -> str:
+    try:
+        resolved = resolve_scoped_path(tools_root, path)
+    except ToolError as exc:
+        return f"Error: {exc}"
+    if not resolved.exists():
+        return f"Error: file not found: {path}"
+    if not resolved.is_file():
+        return f"Error: not a file: {path}"
+    try:
+        content = resolved.read_text(encoding="utf-8")
+    except OSError as exc:
+        return f"Error: could not read file: {exc}"
+
+    if not edits:
+        return f"Error: no edits provided for {path}"
+
+    working = content
+    for index, edit in enumerate(edits):
+        old_text = edit.get("old_text", "")
+        new_text = edit.get("new_text", "")
+        count = working.count(old_text)
+        if count == 0:
+            return f"Error: hunk {index} old_text not found in {path}; no changes were made"
+        if count > 1:
+            return (
+                f"Error: hunk {index} old_text is ambiguous in {path} "
+                f"({count} occurrences); no changes were made"
+            )
+        working = working.replace(old_text, new_text, 1)
+
+    try:
+        resolved.write_text(working, encoding="utf-8")
+    except OSError as exc:
+        return f"Error: could not write file: {exc}"
+    return f"Applied {len(edits)} hunk(s) to {path}"
 
 
 def list_dir(tools_root: Union[str, Path], path: str = ".") -> str:
