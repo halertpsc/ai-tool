@@ -1,3 +1,4 @@
+import sys
 from importlib.metadata import PackageNotFoundError, version
 
 import click
@@ -5,6 +6,15 @@ import click
 from vllm_cli.commands.chat import chat_cmd
 from vllm_cli.commands.complete import complete_cmd
 from vllm_cli.commands.config_cmd import config_group
+
+# Model I/O is UTF-8 and may contain characters outside the default Windows
+# console code page (cp1252): output containing them would otherwise raise
+# UnicodeEncodeError, and input containing them would otherwise be silently
+# mis-decoded (each UTF-8 byte read back as a separate cp1252 character).
+# Reconfigure stdio to UTF-8 so both directions round-trip correctly.
+for _stream in (sys.stdin, sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 try:
     _version = version("vllm-cli")
